@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # ts-jest 29 does not support the Babel 8 peer dependency chain yet.
+      - dependency-name: "@babel/preset-env"
+        update-types:
+          - "version-update:semver-major"
     groups:
       development-dependencies:
         dependency-type: development

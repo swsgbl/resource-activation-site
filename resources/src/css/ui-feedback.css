@@ -241,7 +241,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: url('../assets/images/pattern.svg');
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.18) 0,
+        rgba(255, 255, 255, 0.18) 1px,
+        transparent 1px,
+        transparent 12px
+    );
     opacity: 0.1;
     animation: float 20s linear infinite;
 }

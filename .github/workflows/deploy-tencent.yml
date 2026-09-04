@@ -1,9 +1,11 @@
-name: Deploy to Tencent Cloud
+name: Deploy Resource Site
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
+    paths:
+      - "resources/**"
+      - ".github/workflows/deploy-tencent.yml"
   workflow_dispatch:
 
 jobs:
@@ -11,46 +13,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Create deployment package
         run: |
-          zip -r deploy_package.zip index.html resources nginx-config.conf
+          zip -r deploy_package.zip resources
 
       - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
-          host: ${{ secrets.TENCENT_HOST }}
-          username: ${{ secrets.TENCENT_USERNAME }}
-          password: ${{ secrets.TENCENT_PASSWORD }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: "deploy_package.zip"
           target: "/tmp/"
+          timeout: 60s
+          command_timeout: 10m
 
       - name: Execute remote commands
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
-          host: ${{ secrets.TENCENT_HOST }}
-          username: ${{ secrets.TENCENT_USERNAME }}
-          password: ${{ secrets.TENCENT_PASSWORD }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 10m
           script: |
-            # Install dependencies if missing (idempotent)
-            if ! command -v nginx &> /dev/null; then
-                apt-get update && apt-get install -y nginx unzip
+            set -euo pipefail
+
+            release_dir=$(mktemp -d)
+            trap 'rm -rf "$release_dir" /tmp/deploy_package.zip' EXIT
+            unzip -q /tmp/deploy_package.zip -d "$release_dir"
+            test -f "$release_dir/resources/index.html"
+
+            mkdir -p /var/www/ndtool
+            if [ -d /var/www/ndtool/resources ]; then
+              mv /var/www/ndtool/resources "/var/www/ndtool/resources.bak-ci-$(date +%Y%m%d%H%M%S)"
             fi
-            
-            # Prepare target directory
-            mkdir -p /var/www/trae-promo
-            
-            # Unzip
-            unzip -o /tmp/deploy_package.zip -d /var/www/trae-promo
-            
-            # Configure Nginx
-            cp /var/www/trae-promo/nginx-config.conf /etc/nginx/sites-available/ndtool.cn.conf
-            ln -sf /etc/nginx/sites-available/ndtool.cn.conf /etc/nginx/sites-enabled/
-            
-            # Test and Reload Nginx
+            mv "$release_dir/resources" /var/www/ndtool/resources
+
             nginx -t
             systemctl reload nginx
-            
-            # Cleanup
-            rm /tmp/deploy_package.zip
+
+            curl -fsS https://ndtool.cn/resources/ >/dev/null
