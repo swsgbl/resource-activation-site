@@ -12,6 +12,10 @@
     "test:coverage": "jest --coverage",
     "tsc": "tsc"
   },
+  "overrides": {
+    "js-yaml@3": "^4.3.2",
+    "postcss-selector-parser@6": "7.1.6"
+  },
   "devDependencies": {
     "@babel/preset-env": "^7.26.0",
     "@types/jest": "^29.5.14",
